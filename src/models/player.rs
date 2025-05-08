@@ -52,4 +52,41 @@
                 None => Ok(None),
             }
         }
+
+        pub async fn update_health(db: &Database, id: Uuid, health: i32) -> Result<Player, Error> {
+            let row = db.client.query_one(
+                "UPDATE player SET health = $1 WHERE id = $2 RETURNING id, name, health, inventory_id",
+                &[&health, &id]
+            ).await?;
+
+            Ok(Player {
+                id: row.get(0),
+                name: row.get(1),
+                health: row.get(2),
+                inventory_id: row.get(3),
+            })
+        }
+
+        pub async fn update_inventory(db: &Database, id: Uuid, inventory_id: Option<Uuid>) -> Result<Player, Error> {
+            let row = db.client.query_one(
+                "UPDATE player SET inventory_id = $1 WHERE id = $2 RETURNING id, name, health, inventory_id",
+                &[&inventory_id, &id]
+            ).await?;
+
+            Ok(Player {
+                id: row.get(0),
+                name: row.get(1),
+                health: row.get(2),
+                inventory_id: row.get(3),
+            })
+        }
+
+        pub async fn delete(db: &Database, id: Uuid) -> Result<u64, Error> {
+            let result = db.client.execute(
+                "DELETE FROM player WHERE id = $1",
+                &[&id]
+            ).await?;
+
+            Ok(result)
+        }
     }
