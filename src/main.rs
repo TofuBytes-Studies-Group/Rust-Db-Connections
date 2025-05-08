@@ -1,8 +1,10 @@
 mod psqldb;
 mod models;
+mod redisdb;
 
 use psqldb::Database;
 use models::player::Player;
+use redisdb::{RedisDatabase, GameScore};
 use tokio_postgres::Error;
 use std::io::{self, Write};
 use uuid::Uuid;
@@ -10,6 +12,7 @@ use uuid::Uuid;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let db = Database::connect().await?;
+    let mut redis_db = RedisDatabase::connect().await.expect("Failed to connect to Redis");
     loop {
         // Print the menu
         println!("\n=== Player Management Menu ===");
@@ -19,6 +22,9 @@ async fn main() -> Result<(), Error> {
         println!("4. Update Player Health");
         println!("5. Delete Player");
         println!("6. Update Player Inventory");
+        println!("7. Save Player Score");
+        println!("8. Get Player Score");
+        println!("9. Delete Player Score");
         println!("0. Exit");
         print!("Choose an option: ");
         io::stdout().flush().unwrap();  // Flush to ensure the prompt shows
@@ -95,6 +101,37 @@ async fn main() -> Result<(), Error> {
                     Err(_) => {
                         println!("Invalid player UUID format.");
                     }
+                }
+            }
+            "7" => {
+                let player_name = prompt("Enter player name: ");
+                let kills = prompt("Enter number of kills: ").parse::<u32>().unwrap_or(0);
+                let gold = prompt("Enter amount of gold: ").parse::<u32>().unwrap_or(0);
+                let game_time = prompt("Enter game time (in minutes): ").parse::<u32>().unwrap_or(0);
+
+                let score = GameScore {
+                    player_name: player_name.clone(),
+                    kills,
+                    gold,
+                    game_time,
+                };
+
+                redis_db.save_score(&player_name, score).await.expect("Failed to save score");
+                println!("Score saved for player: {}", player_name);
+            }
+            "8" => {
+                let player_name = prompt("Enter player name: ");
+                match redis_db.get_score(&player_name).await {
+                    Ok(Some(score)) => println!("Score for {}: {:?}", player_name, score),
+                    Ok(None) => println!("No score found for player: {}", player_name),
+                    Err(err) => println!("Failed to get score: {}", err),
+                }
+            }
+            "9" => {
+                let player_name = prompt("Enter player name to delete score: ");
+                match redis_db.delete_score(&player_name).await {
+                    Ok(_) => println!("Score deleted for player: {}", player_name),
+                    Err(err) => println!("Failed to delete score: {}", err),
                 }
             }
             "0" => {
