@@ -1,6 +1,7 @@
 mod psqldb;
 mod models;
 mod redisdb;
+mod mongodb;
 
 use psqldb::Database;
 use models::player::Player;
@@ -8,11 +9,18 @@ use redisdb::{RedisDatabase, GameScore};
 use tokio_postgres::Error;
 use std::io::{self, Write};
 use uuid::Uuid;
+use mongodb::MongoDB;
+use crate::mongodb::Item;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let db = Database::connect().await?;
     let mut redis_db = RedisDatabase::connect().await.expect("Failed to connect to Redis");
+
+    let mongo_db = MongoDB::new("mongodb://localhost:27017", "mydb", "items")
+        .await
+        .expect("Failed to connect to MongoDB");
+
     loop {
         // Print the menu
         println!("\n=== Player Management Menu ===");
@@ -25,6 +33,10 @@ async fn main() -> Result<(), Error> {
         println!("7. Save Player Score");
         println!("8. Get Player Score");
         println!("9. Delete Player Score");
+        println!("10. Create MongoDB Item");
+        println!("11. Get MongoDB Item");
+        println!("12. Update MongoDB Item");
+        println!("13. Delete MongoDB Item");
         println!("0. Exit");
         print!("Choose an option: ");
         io::stdout().flush().unwrap();  // Flush to ensure the prompt shows
@@ -133,6 +145,42 @@ async fn main() -> Result<(), Error> {
                     Ok(_) => println!("Score deleted for player: {}", player_name),
                     Err(err) => println!("Failed to delete score: {}", err),
                 }
+            }
+            "10" => {
+                let name = prompt("Enter item name: ");
+                let value = prompt("Enter item value: ");
+                let item = Item {
+                    id: None,
+                    name,
+                    value,
+                };
+
+                mongo_db.create(item).await.expect("Failed to create item");
+                println!("Item created successfully.");
+            }
+
+            // MongoDB Read
+            "11" => {
+                let id = prompt("Enter item ID: ");
+                match mongo_db.read(&id).await.expect("Failed to read item") {
+                    Some(item) => println!("Item found: {:?}", item),
+                    None => println!("Item not found."),
+                }
+            }
+
+            // MongoDB Update
+            "12" => {
+                let id = prompt("Enter item ID: ");
+                let new_value = prompt("Enter new value: ");
+                mongo_db.update(&id, &new_value).await.expect("Failed to update item");
+                println!("Item updated successfully.");
+            }
+
+            // MongoDB Delete
+            "13" => {
+                let id = prompt("Enter item ID to delete: ");
+                mongo_db.delete(&id).await.expect("Failed to delete item");
+                println!("Item deleted successfully.");
             }
             "0" => {
                 println!("Exiting...");
