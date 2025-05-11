@@ -147,12 +147,12 @@ async fn main() -> Result<(), Error> {
                 }
             }
             "10" => {
-                let name = prompt("Enter item name: ");
-                let value = prompt("Enter item value: ");
+                let character_name = prompt("Enter character name: ");
+                let world_lore = prompt("Enter world lore: ");
                 let item = Item {
                     id: None,
-                    name,
-                    value,
+                    character_name: character_name.clone(),
+                    world_lore: world_lore.clone(),
                 };
 
                 mongo_db.create(item).await.expect("Failed to create item");
@@ -171,8 +171,8 @@ async fn main() -> Result<(), Error> {
             // MongoDB Update
             "12" => {
                 let id = prompt("Enter item ID: ");
-                let new_value = prompt("Enter new value: ");
-                mongo_db.update(&id, &new_value).await.expect("Failed to update item");
+                let new_world_lore = prompt("Enter new world lore: ");
+                mongo_db.update(&id, &new_world_lore).await.expect("Failed to update item");
                 println!("Item updated successfully.");
             }
 

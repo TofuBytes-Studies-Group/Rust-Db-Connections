@@ -7,8 +7,9 @@ use mongodb::bson::oid::ObjectId;
 pub struct Item {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
-    pub name: String,
-    pub value: String,
+    pub character_name: String,
+    pub world_lore: String,
+
 }
 
 pub struct MongoDB {
@@ -42,10 +43,10 @@ impl MongoDB {
     }
 
 
-    pub async fn update(&self, item_id: &str, new_value: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn update(&self, item_id: &str, new_world_lore: &str) -> Result<(), Box<dyn Error>> {
         let object_id = ObjectId::parse_str(item_id)?;
         let filter = doc! { "_id": object_id };
-        let update = doc! { "$set": { "value": new_value } };
+        let update = doc! { "$set": { "world_lore": new_world_lore } };
         self.collection.update_one(filter, update, None).await?;
         Ok(())
     }
