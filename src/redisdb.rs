@@ -1,57 +1,40 @@
-﻿// src/redisdb.rs
-use redis::{aio::ConnectionManager, AsyncCommands, Client, RedisError};
-use serde::{Deserialize, Serialize};
-use serde_json::Error as SerdeError;
-use thiserror::Error;
+﻿use redis::{AsyncCommands, Client, RedisError, RedisResult};
+use redis::aio::MultiplexedConnection;
+use tokio::sync::Mutex;
+use std::sync::Arc;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GameScore {
-    pub player_name: String,
-    pub kills: u32,
-    pub gold: u32,
-    pub game_time: u32,
+pub struct ScoreManager {
+    client: Client,
+    connection: Arc<Mutex<MultiplexedConnection>>,
 }
 
-#[derive(Debug, Error)]
-pub enum GameScoreError {
-    #[error("Redis error: {0}")]
-    Redis(#[from] RedisError),
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] SerdeError),
-}
-
-pub struct RedisDatabase {
-    manager: ConnectionManager,
-}
-
-impl RedisDatabase {
-    pub async fn connect() -> Result<Self, RedisError> {
-        let client = Client::open("redis://127.0.0.1/")?;
-        let manager = ConnectionManager::new(client).await?;
-        Ok(Self { manager })
+impl ScoreManager {
+    /// Creates a new ScoreManager with a single connection to the Redis server.
+    pub async fn new(redis_url: &str) -> Result<Self, RedisError> {
+        let client = Client::open(redis_url)?;
+        let connection = client.get_multiplexed_async_connection().await?;
+        Ok(Self {
+            client,
+            connection: Arc::new(Mutex::new(connection)),
+        })
     }
 
-    pub async fn save_score(&mut self, player_name: &str, score: GameScore) -> Result<(), GameScoreError> {
-        let key = format!("player:score:{}", player_name);
-        let score_json = serde_json::to_string(&score)?;
-
-        // Note the lifetime 'static added here
-        self.manager.set(key, score_json).await.map_err(GameScoreError::Redis)
+    /// Removes a member from a sorted set.
+    pub async fn remove_member(&self, key: &str, member: &str) -> RedisResult<i64> {
+        let mut conn = self.connection.lock().await;
+        conn.zrem(key, member).await
     }
 
-
-    pub async fn get_score(&mut self, player_name: &str) -> Result<Option<GameScore>, GameScoreError> {
-        let key = format!("player:score:{}", player_name);
-        let score_json: Option<String> = self.manager.get(key).await?;
-        match score_json {
-            Some(json) => Ok(Some(serde_json::from_str(&json)?)),
-            None => Ok(None),
-        }
+    /// Adds a member with a score to a sorted set.
+    pub async fn add_member(&self, key: &str, member: &str, kills: f64) -> RedisResult<i64> {
+        let mut conn = self.connection.lock().await;
+        conn.zadd(key, member, kills).await
     }
 
-    pub async fn delete_score(&mut self, player_name: &str) -> Result<(), GameScoreError> {
-        let key = format!("player:score:{}", player_name);
-        let _: u64 = self.manager.del(key).await.map_err(GameScoreError::Redis)?;
-        Ok(())
+    /// Gets the top 100 players with the highest scores.
+    pub async fn get_top_players(&self, key: &str) -> RedisResult<Vec<(String, f64)>> {
+        let mut conn = self.connection.lock().await;
+        conn.zrevrange_withscores(key, 0, 99).await
     }
+
 }
