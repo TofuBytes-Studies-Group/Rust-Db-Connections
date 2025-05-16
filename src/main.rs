@@ -19,7 +19,7 @@ async fn main() -> Result<(), Error> {
         .await
         .expect("Failed to connect to Redis");
 
-    let mongo_db = MongoDB::new("mongodb://localhost:27017", "mydb", "items")
+    let mongo_db = MongoDB::new("mongodb://localhost:60000", "mydb", "items")
         .await
         .expect("Failed to connect to MongoDB");
 
@@ -133,7 +133,7 @@ async fn main() -> Result<(), Error> {
                     Ok(players) => {
                         println!("\n=== Top 100 Players ===");
                         for (rank, (name, score)) in players.iter().enumerate() {
-                            println!("{}. {} - {}", rank + 1, name, score);
+                            println!("Rank {}. {} with {} kills", rank + 1, name, score);
                         }
                     }
                     Err(err) => println!("Failed to get top players: {}", err),
