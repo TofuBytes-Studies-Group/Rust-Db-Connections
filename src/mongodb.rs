@@ -58,9 +58,4 @@ impl MongoDB {
         Ok(())
     }
 
-    // pub async fn list_all(&self) -> Result<Vec<Item>, Box<dyn Error>> {
-    //     let cursor = self.collection.find(None, None).await?;
-    //     let items: Vec<Item> = cursor.try_collect().await?;
-    //     Ok(items)
-    // }
 }

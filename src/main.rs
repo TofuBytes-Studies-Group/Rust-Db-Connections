@@ -15,6 +15,7 @@ use crate::mongodb::Item;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let db = Database::connect().await?;
+
     let mut score_manager = ScoreManager::new("redis://127.0.0.1/")
         .await
         .expect("Failed to connect to Redis");
@@ -24,7 +25,6 @@ async fn main() -> Result<(), Error> {
         .expect("Failed to connect to MongoDB");
 
     loop {
-        // Print the menu
         println!("\n=== Player Management Menu ===");
         println!("1. Create a New Player");
         println!("2. List All Players");
@@ -41,23 +41,20 @@ async fn main() -> Result<(), Error> {
         println!("13. Delete MongoDB Item");
         println!("0. Exit");
         print!("Choose an option: ");
-        io::stdout().flush().unwrap();  // Flush to ensure the prompt shows
+        io::stdout().flush().unwrap(); // Flush to ensure the menu shows
 
-        // Read user input
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
         let choice = input.trim();
 
         match choice {
             "1" => {
-                // Create a new player
                 let name = prompt("Enter player name: ");
                 let health = prompt("Enter player health: ").parse::<i32>().unwrap_or(100);
                 let player = Player::create(&db, &name, health).await?;
                 println!("Created player: {:?}", player);
             }
             "2" => {
-                // List all players
                 let players = Player::get_all(&db).await?;
                 println!("\n=== Player List ===");
                 for player in players {
@@ -121,7 +118,6 @@ async fn main() -> Result<(), Error> {
                 let player_name = prompt("Enter player name: ");
                 let kills = prompt("Enter number of kills: ").parse::<u32>().unwrap_or(0);
 
-                // Add the score using the ScoreManager
                 score_manager
                     .add_member("scoreboard", &player_name, kills as f64)
                     .await
@@ -160,7 +156,6 @@ async fn main() -> Result<(), Error> {
                 println!("Item created successfully.");
             }
 
-            // MongoDB Read
             "11" => {
                 let id = prompt("Enter item ID: ");
                 match mongo_db.read(&id).await.expect("Failed to read item") {
@@ -169,7 +164,6 @@ async fn main() -> Result<(), Error> {
                 }
             }
 
-            // MongoDB Update
             "12" => {
                 let id = prompt("Enter item ID: ");
                 let new_world_lore = prompt("Enter new world lore: ");
@@ -177,7 +171,7 @@ async fn main() -> Result<(), Error> {
                 println!("Item updated successfully.");
             }
 
-            // MongoDB Delete
+
             "13" => {
                 let id = prompt("Enter item ID to delete: ");
                 mongo_db.delete(&id).await.expect("Failed to delete item");
